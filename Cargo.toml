@@ -1,0 +1,9 @@
+[package]
+name = "grox"
+version = "0.1.0"
+authors = ["Thiago Galesi <thiagogalesi@gmail.com>"]
+
+[dependencies]
+regex = "0.1.59"
+getopts = "0.2"
+
