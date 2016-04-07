@@ -11,9 +11,10 @@ Usage: grox FILE [options]
 
 
 Options:
+```
     -e RE               regex for searching
-        --frgx RE       regex for matching files
-        --fnrgx RE      regex for excluding files
-        --ne RE         exclude this regex from search
+    --frgx RE       regex for matching files
+    --fnrgx RE      regex for excluding files
+    --ne RE         exclude this regex from search
     -h, --help          print this help menu
-
+```
