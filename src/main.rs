@@ -140,6 +140,7 @@ fn main() {
     let mut opts = Options::new();
     let program = args[0].clone();
     opts.optopt("e", "", "regex for searching", "RE");
+    opts.optopt("", "fx", "shortcut for searching for extensions", "RE");
     opts.optopt("", "frgx", "regex for matching files", "RE");
     opts.optopt("", "fnrgx", "regex for excluding files", "RE");
     opts.optopt("", "ne", "exclude this regex from search", "RE");
@@ -153,11 +154,20 @@ fn main() {
         return;
     }
     let frgx_e = matches.opts_str(&["frgx".to_string()]);
-    let frgx = frgx_e.clone();
-    let frgx_re = frgx_e.map(|fx| Regex::new(&fx).unwrap());
+    let mut frgx = frgx_e.clone();
+    let mut frgx_re = frgx_e.map(|fx| Regex::new(&fx).unwrap());
+
+    let fx_e = matches.opts_str(&["fx".to_string()]);
+    if fx_e.is_some() {
+        let frgx_fx = format!(r"\.{}$", fx_e.unwrap());
+        let re1 = Regex::new(&frgx_fx);
+        frgx = Some(frgx_fx); // allows printing below
+        frgx_re = Some(re1.unwrap());
+    }
     if frgx_re.is_some() {
         println!("FRGX = {}", frgx.clone().unwrap());
     }
+
     let fnrgx_e = matches.opts_str(&["fnrgx".to_string()]);
     let fnrgx_re = fnrgx_e.map(|fx| Regex::new(&fx).unwrap());
     let e_re_opt = matches.opt_str("e");
