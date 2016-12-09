@@ -46,33 +46,58 @@ impl<'a> Clone for TextRegex<'a> {
     }
 }
 
-fn grep(p: &path::Path, tr: TextRegex) {
+fn grep_file(p: &path::Path, tr: TextRegex) {
     let f;
     match File::open(p) {
         Ok(fo) => { f = Some(fo); }
         Err(err) => { println_stderr!("Error opening {}, {}", p.display(), err); return; }
     }
-    let f = BufReader::new(f.unwrap());
+    let fd = f.unwrap();
+    let f = BufReader::new(fd);
     let mut ln = 0;
-    for line in f.lines() {
-        if line.is_ok() {
-            let lineok = line.unwrap().to_string();
-            let mut print_line = true;
-            if tr.e.is_match(&lineok) {
-                if tr.ne.is_some() {
-                    if tr.ne.clone().unwrap().is_match(&lineok) {
-                        print_line = false;
-                    }
-                }
-            } else {
-                print_line = false;
-            }
+    let mut print_line;
+    for line_m in f.lines() {
+        if line_m.is_ok() {
+            let lineok = line_m.unwrap().to_string();
+            print_line = grep(&lineok, &tr);
             if print_line {
                 println!("{} +{} |{}", p.display(), ln, lineok);
             }
         }
         ln += 1;
+
     }
+}
+
+fn grep_stdin(tr: TextRegex) {
+    let mut s = String::new();
+    let stdin = io::stdin();
+    let mut ln = 0;
+    let mut print_line;
+    while stdin.read_line(&mut s).unwrap() > 0 {
+        print_line = grep(&s, &tr);
+        s.pop(); // removes newline
+        if print_line {
+            println!("(standard input) +{} |{}", ln, &s);
+        }
+        s.clear();
+        ln += 1;
+    }
+
+}
+
+fn grep(line: &String, tr: &TextRegex) -> bool {
+    let mut print_line = true;
+    if tr.e.is_match(line) {
+        if tr.ne.is_some() {
+            if tr.ne.clone().unwrap().is_match(line) {
+                print_line = false;
+            }
+        }
+    } else {
+        print_line = false;
+    }
+    print_line
     // println!("File {} has {} lines",p.display(), ln);
 }
 
@@ -121,12 +146,12 @@ fn walk(p: &path::Path, tr: TextRegex, fr: FileRegex) {
                 walk(&entry.path(), tr, fr);
             } else {
                 if path_matches(&entry, fr) {
-                    grep(&entry.path(), tr);
+                    grep_file(&entry.path(), tr);
                 }
             }
         }
     } else {
-        grep(p, tr);
+        grep_file(p, tr);
     }
 }
 
@@ -176,17 +201,32 @@ fn main() {
     let ne_re_opt = matches.opt_str("ne");
     let ne_re = ne_re_opt.map(|ne_rex| Regex::new(&ne_rex).unwrap());
 
+    let mut from_stdin = false;
+
+    if matches.free.len() == 0 {
+        from_stdin = true;
+    }
+
+    let txr = TextRegex {
+        e: &re,
+        ne: &ne_re,
+    };
+
     for a in matches.free {
+        if a == "--" {
+            from_stdin = true;
+            break;
+        }
         let f = path::Path::new(&a);
         let fxr = FileRegex {
             frgx: &frgx_re,
             fnrgx: &fnrgx_re,
         };
-        let txr = TextRegex {
-            e: &re,
-            ne: &ne_re,
-        };
         walk(f, txr, fxr);
+    }
+
+    if from_stdin {
+        grep_stdin(txr);
     }
 
 }
