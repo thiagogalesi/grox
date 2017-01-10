@@ -203,8 +203,10 @@ fn main() {
 
     let mut from_stdin = false;
 
-    if matches.free.len() == 0 {
-        from_stdin = true;
+    let mut free_matches = matches.free.clone();
+
+    if free_matches.len() == 0 {
+        free_matches.push(".".to_string().clone());
     }
 
     let txr = TextRegex {
@@ -212,7 +214,7 @@ fn main() {
         ne: &ne_re,
     };
 
-    for a in matches.free {
+    for a in free_matches {
         if a == "--" {
             from_stdin = true;
             break;
