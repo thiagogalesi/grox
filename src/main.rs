@@ -124,13 +124,13 @@ fn walk(p: &path::Path, tr: TextRegex, fr: FileRegex) {
     if p.is_dir() {
         let entries_w = fs::read_dir(p);
         let entries: fs::ReadDir;
-        match entries_w {
-            Ok(e) => { entries = e; }
+        entries = match entries_w {
+            Ok(e) => e,
             Err(err) => {
                 println_stderr!("Cannot list path: {}, {}", p.display(), err);
                 return;
             }
-        }
+        };
         for entry in entries {
             let entry = entry.unwrap();
             let fsm = fs::metadata(entry.path());
@@ -178,11 +178,11 @@ fn main() {
         print_usage(&program, opts);
         return;
     }
-    let frgx_e = matches.opts_str(&["frgx".to_string()]);
+    let frgx_e = matches.opt_str("frgx");
     let mut frgx = frgx_e.clone();
     let mut frgx_re = frgx_e.map(|fx| Regex::new(&fx).unwrap());
 
-    let fx_e = matches.opts_str(&["fx".to_string()]);
+    let fx_e = matches.opt_str("fx");
     if fx_e.is_some() {
         let frgx_fx = format!(r"\.{}$", fx_e.unwrap());
         let re1 = Regex::new(&frgx_fx);
@@ -193,7 +193,7 @@ fn main() {
         println!("FRGX = {}", frgx.clone().unwrap());
     }
 
-    let fnrgx_e = matches.opts_str(&["fnrgx".to_string()]);
+    let fnrgx_e = matches.opt_str("fnrgx");
     let fnrgx_re = fnrgx_e.map(|fx| Regex::new(&fx).unwrap());
     let e_re_opt = matches.opt_str("e");
     let e_re = e_re_opt.map(|e_rex| Regex::new(&e_rex).unwrap());
@@ -203,10 +203,10 @@ fn main() {
 
     let mut from_stdin = false;
 
-    let mut free_matches = matches.free.clone();
+    let mut free_matches = matches.free;
 
     if free_matches.len() == 0 {
-        free_matches.push(".".to_string().clone());
+        free_matches.push(".".to_owned()); 
     }
 
     let txr = TextRegex {
