@@ -47,13 +47,11 @@ impl<'a> Clone for TextRegex<'a> {
 }
 
 fn grep_file(p: &path::Path, tr: TextRegex) {
-    let f;
-    match File::open(p) {
-        Ok(fo) => { f = Some(fo); }
+    let f_ = match File::open(p) {
+        Ok(fo) => fo,
         Err(err) => { println_stderr!("Error opening {}, {}", p.display(), err); return; }
-    }
-    let fd = f.unwrap();
-    let f = BufReader::new(fd);
+    };
+    let f = BufReader::new(f_);
     let mut ln = 0;
     let mut print_line;
     for line_m in f.lines() {
@@ -134,14 +132,13 @@ fn walk(p: &path::Path, tr: TextRegex, fr: FileRegex) {
         for entry in entries {
             let entry = entry.unwrap();
             let fsm = fs::metadata(entry.path());
-            let fsp;
-            match fsm {
-                Ok(fp) => { fsp = fp; }
+            let fsp = match fsm {
+                Ok(fp) => fp,
                 Err(err) => {
                     println_stderr!("Cannot stat path: {}, {}",entry.path().display(), err);
                     continue;
                 }
-            }
+            };
             if fsp.is_dir() {
                 walk(&entry.path(), tr, fr);
             } else {
