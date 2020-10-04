@@ -37,6 +37,7 @@ impl<'a> Clone for FileRegex<'a> {
 struct TextRegex<'a> {
     e: &'a Regex,
     ne: &'a Option<Regex>,
+    ctx: u8,
 }
 
 impl<'a> Copy for TextRegex<'a> {}
@@ -47,19 +48,50 @@ impl<'a> Clone for TextRegex<'a> {
 }
 
 fn grep_file(p: &path::Path, tr: TextRegex) {
+    let mut use_ctx: bool = false;
+    // if the context is 1 line, we need to store 2 lines
+    // hence the +1
+    let rbuff_size:usize = (tr.ctx+1).into();
+    let mut rbuff: Vec<String> = Vec::with_capacity(rbuff_size.into());
+    if tr.ctx != 0 {
+        use_ctx = true;
+    }
     let f_ = match File::open(p) {
         Ok(fo) => fo,
         Err(err) => { println_stderr!("Error opening {}, {}", p.display(), err); return; }
     };
     let f = BufReader::new(f_);
-    let mut ln = 0;
+    let mut ln:usize = 0;
     let mut print_line;
+    let mut bpp:usize = 0;
+    let mut bpa:usize = 0;
     for line_m in f.lines() {
-        if line_m.is_ok() {
-            let lineok = line_m.unwrap().to_string();
-            print_line = grep(&lineok, &tr);
-            if print_line {
+        if !line_m.is_ok() {
+            continue;
+        }
+        let line_s = line_m.unwrap().to_string();
+        if ln < rbuff_size {
+            rbuff.push(line_s.clone())
+        } else if rbuff_size > 0 {
+            let idx:usize = (ln%rbuff_size).into();
+            rbuff[idx] = line_s.clone();
+        }
+        let lineok = line_s.clone();
+        print_line = grep(&lineok, &tr);
+        if print_line {
+            if !use_ctx {
                 println!("{} +{} |{}", p.display(), ln, lineok);
+            } else {
+                // print the lines before
+                println!("--");
+                let act_rbsize = rbuff.len();
+                for x in 0..act_rbsize {
+                    // you want to start on the first line, which is
+                    // the next line on the buffer
+                    bpp = (1+ln+x)%act_rbsize;
+                    let actual_ln = ln - (act_rbsize - x - 1);
+                    println!("{} +{} |{}", p.display(), actual_ln, rbuff[bpp]);
+                }
             }
         }
         ln += 1;
@@ -162,6 +194,7 @@ fn main() {
     let mut opts = Options::new();
     let program = args[0].clone();
     opts.optopt("e", "", "regex for searching", "RE");
+    opts.optopt("C", "", "lines of context", "LINES");
     opts.optopt("", "fx", "shortcut for searching for extensions", "RE");
     opts.optopt("", "frgx", "regex for matching files", "RE");
     opts.optopt("", "fnrgx", "regex for excluding files", "RE");
@@ -175,6 +208,13 @@ fn main() {
         print_usage(&program, opts);
         return;
     }
+
+    let ctx_opt = matches.opt_str("C");
+    let ctx:u8 = match ctx_opt {
+        Some(x) => x.parse::<u8>().unwrap(),
+        None => 0,
+    };
+    
     let frgx_e = matches.opt_str("frgx");
     let mut frgx = frgx_e.clone();
     let mut frgx_re = frgx_e.map(|fx| Regex::new(&fx).unwrap());
@@ -209,6 +249,7 @@ fn main() {
     let txr = TextRegex {
         e: &re,
         ne: &ne_re,
+        ctx: ctx,
     };
 
     for a in free_matches {
